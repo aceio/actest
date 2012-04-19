@@ -5,13 +5,15 @@
 import os
 import sys
 import time
+import struct
+import socket
 
 from scapy.all import *
 
 # SMALL LINK PROTOCOL (SML)
 # Ethernet Layer 2 protocol using VLAN Priority to establish realtime
 # communication. 
-SML_ETH_TYPE = '0x81AA'
+SML_ETH_TYPE = 0x81AA
 
 # Multihost communication in a subnet is realized with  the ethernet multicast address:
 # MAC = 01:00:AA:00:00:00
@@ -46,21 +48,56 @@ class SmallLinkTimeServer():
     
     def __init__( self, ifname):
         self.__prot_bind()
-	self.__ifname = ifname
-        self.__pkt = Ether( src = get_if_hwaddr(ifname), dst = SML_DST_MAC ) / Dot1Q() / SmallLink( msg_type = 0, dev_id = 0, seq_num = random.randint( 0, 2**16-1 ) )
-
-    # time server function blocking
-    def serv(self):
+        self.__ifname = ifname
+        self.__head = Ether( src = get_if_hwaddr(ifname), dst = SML_DST_MAC )
+        self.__head = self.__head / Dot1Q() / SmallLink( msg_type = 0,dev_id = 0,
+                seq_num = random.randint( 0, 2**16 - 1 ) )
+    
+     # time server function blocking
+    def srv(self):
         # start infinite sending loop
         print "start time server... (CTRL-C abort)\n"
         while True :
-            print "start time server... (CTRL-C abort)\n"
-            self.__pkt = self.__pkt/('time is ...%f' %(time.time()))
-	    sendp( self.__pkt, iface=self.__ifname ) 
+            self.__pkt = self.__head / ('time is ...%f' %(time.time()))
+            sendp( self.__pkt, iface=self.__ifname ) 
             time.sleep(1)
 
     # Bind Small Link Protocol to the Dot1Q type field
     def __prot_bind(self):
-        bind_layers( Dot1Q, SmallLink, {'type':int(SML_ETH_TYPE,16)})
+        bind_layers( Dot1Q, SmallLink, {'type':SML_ETH_TYPE})
+
+
+class SmallLinkTimeClient():
+
+    def __init__( self, ifname):
+        self.__sock = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, SML_ETH_TYPE)
+        self.__sock.bind((ifname, SML_ETH_TYPE))
+
+        # enable multicast traffic on the interface
+
+        # struct packet_mreq{
+        #       int             mr_ifindex;
+        #       unsigned short  mr_type;
+        #       unsigned short  mr_alen;
+        #       unsigned char   mr_address[8];
+
+        # define some missing constants for socket
+        PACKET_MR_MULTICAST     = 0
+        SOL_PACKET              = 263
+        PACKET_ADD_MEMBERSHIP   = 1
+
+        mr = struct.pack('iHH6sH', get_if_index(ifname), PACKET_MR_MULTICAST, 6,
+                ''.join([chr(int(s, 16)) for s in SML_DST_MAC.split(':')]),0) 
+
+        self.__sock.setsockopt(SOL_PACKET, PACKET_ADD_MEMBERSHIP, mr)
+
+
+    # time client function blocking 
+    def cli(self):
+        print 'start client time function... (CTRL-C abort)\n'
+        while True :
+            buf = self.__sock.recv(100)
+            print buf
+        
 
 
