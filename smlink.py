@@ -4,6 +4,7 @@
 
 import os
 import sys
+import time
 
 from scapy.all import *
 
@@ -45,16 +46,17 @@ class SmallLinkTimeServer():
     
     def __init__( self, ifname):
         self.__prot_bind()
-        self.__pkt = Ether( src = get_if_hwaddr(ifname), dst = SML_DST_MAC ) /
-        Dot1Q() / SmallLink( msg_type = 0, dev_id = 0, seq_num =
-                random.randint( 0, 2**16-1 ) )
+	self.__ifname = ifname
+        self.__pkt = Ether( src = get_if_hwaddr(ifname), dst = SML_DST_MAC ) / Dot1Q() / SmallLink( msg_type = 0, dev_id = 0, seq_num = random.randint( 0, 2**16-1 ) )
 
     # time server function blocking
     def serv(self):
         # start infinite sending loop
+        print "start time server... (CTRL-C abort)\n"
         while True :
             print "start time server... (CTRL-C abort)\n"
-            self.__pkt.add_payload('time is ...')
+            self.__pkt = self.__pkt/('time is ...%f' %(time.time()))
+	    sendp( self.__pkt, iface=self.__ifname ) 
             time.sleep(1)
 
     # Bind Small Link Protocol to the Dot1Q type field
