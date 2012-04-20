@@ -69,7 +69,7 @@ class SmallLinkTimeServer():
         self.__ifname = ifname
         self.__head = Ether(src = get_if_hwaddr(ifname), dst = SML_DST_MAC)
         self.__head = self.__head / Dot1Q(prio = SML_VLAN_PRIO['NC'],
-                                          vid = SML_VLAN_ID)
+                                          id = SML_VLAN_ID)
         seq_num = random.randint(0, 2**16 - 1)
         self.__head = self.__head / SmallLink(msg_type = 0, 
                                               dev_id = 0,
@@ -80,13 +80,15 @@ class SmallLinkTimeServer():
         # start infinite sending loop
         print "start time server... (CTRL-C abort)\n"
         while True :
-            self.__pkt = self.__head / ('time is ...%f' %(time.time()))
-            sendp(self.__pkt, iface=self.__ifname) 
+            self.__head.lastlayer().seq_num += 1 
+            pkt = self.__head / ('time is ...%f' %(time.time()))
+            sendp(pkt, iface=self.__ifname) 
             time.sleep(1)
 
     # Bind Small Link Protocol to the Dot1Q type field
     def __prot_bind(self):
         bind_layers(Dot1Q, SmallLink, {'type': SML_ETH_TYPE})
+        bind_layers(Ether, SmallLink, {'type': SML_ETH_TYPE})
 
 
 
@@ -94,6 +96,7 @@ class SmallLinkTimeClient():
 
 
     def __init__( self, ifname):
+        self.__prot_bind()
         self.__sock = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, SML_ETH_TYPE)
         self.__sock.bind((ifname, SML_ETH_TYPE))
 
@@ -125,5 +128,10 @@ class SmallLinkTimeClient():
             pkt = Ether(buf)
             pkt.show()
         
+
+    # Bind Small Link Protocol to the Dot1Q type field
+    def __prot_bind(self):
+        bind_layers(Dot1Q, SmallLink, {'type': SML_ETH_TYPE})
+        bind_layers(Ether, SmallLink, {'type': SML_ETH_TYPE})
 
 
