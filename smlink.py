@@ -13,7 +13,11 @@ from scapy.all import *
 # SMALL LINK PROTOCOL (SML)
 # Ethernet Layer 2 protocol using VLAN Priority to establish realtime
 # communication. 
-SML_ETH_TYPE = 0x81AA
+# VLAN: http://www.erg.abdn.ac.uk/~gorry/eg3567/lan-pages/vlan.html#Anchor-Priority-47857
+
+SML_ETH_TYPE 	= 0x81AA
+SML_VLAN_PRIO 	= {'BE':0, 'BK':1, '-':2, 'EE':3, 'CL':4, 'VI':5, 'VO':6, 'NC':7}
+SML_VLAN_ID	= 2048
 
 # Multihost communication in a subnet is realized with  the ethernet multicast address:
 # MAC = 01:00:AA:00:00:00
